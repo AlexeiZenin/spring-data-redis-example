@@ -1,0 +1,5 @@
+spring:
+  redis:
+    sentinel:
+      master: mymaster
+      nodes: "redis-sentinel:26379"

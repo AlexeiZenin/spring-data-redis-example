@@ -1,0 +1,54 @@
+version: '2'
+
+networks:
+  app-tier:
+    driver: bridge
+
+services:
+  app:
+    build: .
+    networks:
+      - app-tier
+    ports:
+      - '8092:8080'
+      # add this to Dockerfile to be able to debug from IDE: -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+      - '5005:5005'
+    environment:
+      SPRING_PROFILES_ACTIVE: sentinel
+    depends_on:
+      - redis-sentinel
+
+  redis:
+    image: 'bitnami/redis:6.0'
+    environment:
+      - REDIS_REPLICATION_MODE=master
+      - ALLOW_EMPTY_PASSWORD=yes
+    networks:
+      - app-tier
+    ports:
+      - '8000:6379'
+  redis-slave:
+    image: 'bitnami/redis:6.0'
+    environment:
+      - REDIS_REPLICATION_MODE=slave
+      - REDIS_MASTER_HOST=redis
+      - ALLOW_EMPTY_PASSWORD=yes
+    ports:
+      - '8001:6379'
+    depends_on:
+      - redis
+    networks:
+      - app-tier
+  redis-sentinel:
+    image: 'bitnami/redis-sentinel:6.0'
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+      - REDIS_SENTINEL_QUORUM=1
+      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=30000
+    depends_on:
+      - redis
+      - redis-slave
+    ports:
+      - '26379:26379'
+    networks:
+      - app-tier
